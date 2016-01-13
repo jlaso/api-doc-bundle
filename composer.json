@@ -1,0 +1,24 @@
+{
+  "name": "jlaso/api-doc-bundle",
+  "version": "1.0",
+  "description": "API documentation bundle",
+  "keywords": ["api", "documentation", "symfony"],
+  "homepage": "https://github.com/jlaso/api-doc-bundle",
+  "type": "bundle",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Joseluis Laso",
+      "email": "jlaso@joseluislaso.es",
+      "homepage": "http://www.joseluislaso.es"
+    }
+  ],
+  "require": {
+    "php": ">=5.3.7"
+  },
+  "minimum-stability": "stable",
+  "autoload": {
+    "psr-0": { "JLaso\\ApiDocBundle": "" }
+  },
+  "target-dir": "JLaso/ApiDocBundle"
+}
