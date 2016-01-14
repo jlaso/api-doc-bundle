@@ -2,9 +2,12 @@
 
 namespace JLaso\ApiDocBundle\Command;
 
+use JLaso\ApiDocBundle\Service\Extractor;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -39,6 +42,8 @@ class GenerateDocCommand extends ContainerAwareCommand
     {
         $this->setName('jlaso:api-doc:generate');
         $this->setDescription('Generate de documentation of the API through the annotations found.');
+        //$this->addOption('assets', null, InputOption::VALUE_REQUIRED, '--assets=folder where assets are, example:favicon.ico');
+        //$this->addOption('output', null, InputOption::VALUE_REQUIRED, '--output=folder where to put the documentation');
     }
 
     protected function init()
@@ -56,27 +61,23 @@ class GenerateDocCommand extends ContainerAwareCommand
         $this->init();
 
         $this->output->writeln('<info>*** Generating API doc ***</info>');
+        $fileNames = [];
 
-        $fileNames = array();
-        $keys = array();
-        $idx = 0;
-        $numKeys = 0;
-
-        $patterns = array(
+        $patterns = [
             '*.php'  => '/trans\s*\(\s*(["\'])(?<trans>(?:\\\1|(?!\1).)*?)\1\s*\)/i',
-        );
-        $folders  = array(
+        ];
+        $folders  = [
             $this->srcDir . '/app',
             $this->srcDir . '/src'
-        );
+        ];
 
-        $keyInfo = array();
+        $classes = [];
 
         foreach($patterns as $filePattern=>$exrPattern){
 
             foreach($folders as $folder){
 
-                $output->writeln($folder);
+                $output->writeln(" folder ---  {$folder} ---");
                 $finder = new Finder();
                 $files = $finder->in($folder)->name($filePattern)->files();
 
@@ -91,14 +92,38 @@ class GenerateDocCommand extends ContainerAwareCommand
                     }else{
                         $bundleName = "*app";
                     }
-
+                    $output->writeln("processing file {$fileName} ...");
                     $fileContents = file_get_contents($fileName);
+
+                    if (preg_match_all("/\snamespace\s+(?P<namespace>[^;]+)/i", $fileContents, $m1, PREG_SET_ORDER) &&
+                        preg_match_all("/\sclass\s+(?P<class>\w+)/i", $fileContents, $m2, PREG_SET_ORDER)) {
+                        //var_dump($m1, $m2);
+                        $classes[] = $m1[0]['namespace'] . "\\" . $m2[0]['class'];
+                    }
 
                 }
             }
         }
 
-        $output->writeln(sprintf("Total %d files examined, and found annotations in %d files", $idx, count($fileNames)));
+        $methodsAnnotations = [];
+
+        foreach($classes as $class) {
+            $annotations = Extractor::getAllClassAnnotations($class);
+            foreach ($annotations[$class] as $methodName=>$methodAnnotations) {
+                if (count($methodAnnotations) > 0) {
+                    $methodsAnnotations[$class][$methodName] = $methodAnnotations;
+                }
+            }
+        }
+
+        print_r($methodsAnnotations);
+
+        $templating = $this->getContainer()->get('templating');
+        $templating->render("JLasoApiDocBundle::index.html.twig", [
+            'title' => $title,
+        ]);
+
+        $output->writeln(sprintf("Total %d files examined, and found annotations in %d files", count($classes), count($fileNames)));
     }
 
     /**
@@ -112,5 +137,14 @@ class GenerateDocCommand extends ContainerAwareCommand
         }
     }
 
+    protected function extractAnnotations($classes)
+    {
+        $output = [];
+        foreach ($classes as $class) {
+            $output[] = Extractor::getAllClassAnnotations($class);
+        }
+
+        return $output;
+    }
 
 }
